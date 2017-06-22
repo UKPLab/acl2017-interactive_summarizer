@@ -5,7 +5,7 @@ In this project, we develop a general framework for Interactive Multi-Document S
 Prerequisites
 -------------
 
-* python >= 2.7 (tested with 2.7.6)
+* python >= 2.7 (tested with 2.7.0)
 
 Installation
 ------------
