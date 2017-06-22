@@ -1,0 +1,646 @@
+# -*- coding: utf-8 -*-
+
+""" Concept-based ILP summarization methods.
+
+    authors: Florian Boudin (florian.boudin@univ-nantes.fr)
+             Hugo Mougard (hugo.mougard@univ-nantes.fr)
+    version: 0.2
+    date: May 2015
+"""
+
+from collections import defaultdict, deque
+import re
+import random
+import sys
+import pulp
+from nltk.corpus import stopwords
+from nltk.stem.snowball import SnowballStemmer
+
+from summarizer.baselines.sume.base import LoadFile, State
+from summarizer.utils.data_helpers import prune_ngrams, extract_ngrams2
+
+class ConceptBasedILPSummarizer(LoadFile):
+    """Implementation of the concept-based ILP model for summarization.
+
+    The original algorithm was published and described in:
+
+      * Dan Gillick and Benoit Favre, A Scalable Global Model for Summarization,
+        *Proceedings of the NAACL HLT Workshop on Integer Linear Programming for
+        Natural Language Processing*, pages 10–18, 2009.
+        
+    """
+    def __init__(self, input_directory, language):
+        """
+        Args:
+            input_directory (str): the directory from which text documents to
+              be summarized are loaded.
+
+        @type language: str
+
+        """
+        self.input_directory = input_directory
+        self.sentences = []
+        self.weights = {}
+        self.c2s = defaultdict(set)
+        self.concept_sets = defaultdict(frozenset)
+        self.LANGUAGE = language
+        # type: str
+
+        self.stoplist = set(stopwords.words(self.LANGUAGE))
+        self.stemmer = SnowballStemmer(self.LANGUAGE)
+
+        self.word_frequencies = defaultdict(int)
+        self.w2s = defaultdict(set)
+
+
+    def extract_ngrams2(self, concept_type='ngrams', n=2):
+        """Extract the ngrams of words from the input sentences.
+
+        Args:
+            n (int): the number of words for ngrams, defaults to 2
+        """
+        for i, sentence in enumerate(self.sentences):
+            if concept_type == 'ngrams':
+                ngrams = extract_ngrams2([sentence.untokenized_form], self.stemmer, self.LANGUAGE, n)
+                pruned_list = prune_ngrams(ngrams, self.stoplist, n)
+            elif concept_type == 'phrase':
+                pruned_list = self.sentences[i].phrases
+                
+            self.sentences[i].concepts = pruned_list
+            
+    def extract_ngrams(self, n=2):
+        """Extract the ngrams of words from the input sentences.
+
+        Args:
+            n (int): the number of words for ngrams, defaults to 2
+        """
+        for i, sentence in enumerate(self.sentences):
+
+            # for each ngram of words
+            for j in range(len(sentence.tokens)-(n-1)):
+
+                # initialize ngram container
+                ngram = []
+
+                # for each token of the ngram
+                for k in range(j, j+n):
+                    ngram.append(sentence.tokens[k].lower())
+
+                # do not consider ngrams containing punctuation marks
+                marks = [t for t in ngram if not re.search('[a-zA-Z0-9]', t)]
+                if len(marks) > 0:
+                    continue
+
+                # do not consider ngrams composed of only stopwords
+                stops = [t for t in ngram if t in self.stoplist]
+                if len(stops) == len(ngram):
+                    continue
+
+                # stem the ngram
+                ngram = [self.stemmer.stem(t) for t in ngram]
+
+                # add the ngram to the concepts
+                self.sentences[i].concepts.append(' '.join(ngram))
+
+
+    def compute_document_frequency(self):
+        """Compute the document frequency of each concept.
+
+        """
+        for i in range(len(self.sentences)):
+
+            # for each concept
+            for concept in self.sentences[i].concepts:
+
+                # add the document id to the concept weight container
+                if concept not in self.weights:
+                    self.weights[concept] = set([])
+                self.weights[concept].add(self.sentences[i].doc_id)
+
+        # loop over the concepts and compute the document frequency
+        for concept in self.weights:
+            self.weights[concept] = len(self.weights[concept])
+
+    def compute_word_frequency(self):
+        """Compute the frequency of each word in the set of documents. """
+
+        for i, sentence in enumerate(self.sentences):
+            for token in sentence.tokens:
+                t = token.lower()
+                if not re.search('[a-zA-Z0-9]', t) or t in self.stoplist:
+                    continue
+                t = self.stemmer.stem(t)
+                self.w2s[t].add(i)
+                self.word_frequencies[t] += 1
+
+    def prune_sentences(self,
+                        mininum_sentence_length=5,
+                        remove_citations=True,
+                        remove_redundancy=True,
+                        imp_list=[]):
+        """Prune the sentences.
+
+        Remove the sentences that are shorter than a given length, redundant
+        sentences and citations from entering the summary.
+
+        Args:
+            mininum_sentence_length (int): the minimum number of words for a
+              sentence to enter the summary, defaults to 5
+            remove_citations (bool): indicates that citations are pruned,
+              defaults to True
+            remove_redundancy (bool): indicates that redundant sentences are
+              pruned, defaults to True
+
+        """
+        pruned_sentences = []
+
+        # loop over the sentences
+        for i, sentence in enumerate(self.sentences):
+            if imp_list:
+                if imp_list[i] == 0:
+                    continue
+            # prune short sentences
+            if sentence.length < mininum_sentence_length:
+                continue
+
+            # prune citations
+            first_token, last_token = sentence.tokens[0], sentence.tokens[-1]
+
+            if remove_citations and \
+               (first_token == u"``" or first_token == u'"' \
+                or last_token == u"''" or first_token == u'"' \
+                or last_token== u"'" or first_token==u"'") \
+                or last_token == u'"':
+                continue
+
+            # prune ___ said citations
+            # if remove_citations and \
+            #     (sentence.tokens[0]==u"``" or sentence.tokens[0]==u'"') and \
+            #     re.search('(?i)(''|") \w{,30} (said|reported|told)\.$',
+            #               sentence.untokenized_form):
+            #     continue
+
+            # prune identical and almost identical sentences
+            if remove_redundancy:
+                is_redundant = False
+                for prev_sentence in pruned_sentences:
+                    if sentence.tokens == prev_sentence.tokens:
+                        is_redundant = True
+                        break
+
+                if is_redundant:
+                    continue
+
+            # otherwise add the sentence to the pruned sentence container
+            pruned_sentences.append(sentence)
+
+        self.sentences = pruned_sentences
+
+    def prune_concepts(self, method="threshold", value=3, rejected_list=[]):
+        """Prune the concepts for efficient summarization.
+
+        Args:
+            method (str): the method for pruning concepts that can be whether
+              by using a minimal value for concept scores (threshold) or using
+              the top-N highest scoring concepts (top-n), defaults to
+              threshold.
+            value (int): the value used for pruning concepts, defaults to 3.
+
+        """
+        if method == 'stopwords':
+            concepts = self.weights.keys()
+            for concept in concepts:
+                pruned_list = prune_ngrams(concept, self.stoplist, 1)
+                if not pruned_list:
+                    #print concept, self.weights[concept]
+                    del self.weights[concept]
+
+        if method == "list":
+            concepts = self.weights.keys()
+            for concept in concepts:
+                if concept in rejected_list:
+                    #print concept, self.weights[concept]
+                    del self.weights[concept]
+
+        # 'threshold' pruning method
+        if method == "threshold":
+
+            # iterates over the concept weights
+            concepts = self.weights.keys()
+            for concept in concepts:
+                if self.weights[concept] < value:
+                    del self.weights[concept]
+
+        # 'top-n' pruning method
+        elif method == "top-n":
+
+            # sort concepts by scores
+            sorted_concepts = sorted(self.weights,
+                                     key=lambda x: self.weights[x],
+                                     reverse=True)
+
+            # iterates over the concept weights
+            concepts = self.weights.keys()
+            for concept in concepts:
+                if concept not in sorted_concepts[:value]:
+                    del self.weights[concept]
+
+        # iterates over the sentences
+        for i in range(len(self.sentences)):
+
+            # current sentence concepts
+            concepts = self.sentences[i].concepts
+
+            # prune concepts
+            self.sentences[i].concepts = [c for c in concepts
+                                          if c in self.weights]
+
+
+    def compute_c2s(self):
+        """Compute the inverted concept to sentences dictionary. """
+
+        for i, sentence in enumerate(self.sentences):
+            for concept in sentence.concepts:
+                self.c2s[concept].add(i)
+
+    def compute_concept_sets(self):
+        """Compute the concept sets for each sentence."""
+
+        for i, sentence in enumerate(self.sentences):
+            for concept in sentence.concepts:
+                self.concept_sets[i] |= {concept}
+
+    def greedy_approximation(self, summary_size=100):
+        """Greedy approximation of the ILP model.
+
+        Args:
+            summary_size (int): the maximum size in words of the summary,
+              defaults to 100.
+
+        Returns:
+            (value, set) tuple (int, list): the value of the approximated
+              objective function and the set of selected sentences as a tuple.
+
+        """
+        # initialize the inverted c2s dictionary if not already created
+        if not self.c2s:
+            self.compute_c2s()
+
+        # initialize weights
+        weights = {}
+
+        # initialize the score of the best singleton
+        best_singleton_score = 0
+
+        # compute indices of our sentences
+        sentences = range(len(self.sentences))
+
+        # compute initial weights and fill the reverse index
+        # while keeping track of the best singleton solution
+        for i, sentence in enumerate(self.sentences):
+            weights[i] = sum(self.weights[c] for c in set(sentence.concepts))
+            if sentence.length <= summary_size\
+               and weights[i] > best_singleton_score:
+                best_singleton_score = weights[i]
+                best_singleton = i
+
+        # initialize the selected solution properties
+        sel_subset, sel_concepts, sel_length, sel_score = set(), set(), 0, 0
+
+        # greedily select a sentence
+        while True:
+
+            ###################################################################
+            # RETRIEVE THE BEST SENTENCE
+            ###################################################################
+
+            # sort the sentences by gain and reverse length
+            sort_sent = sorted(((weights[i] / float(self.sentences[i].length),
+                                 -self.sentences[i].length,
+                                 i)
+                                for i in sentences),
+                               reverse=True)
+
+            # select the first sentence that fits in the length limit
+            for sentence_gain, rev_length, sentence_index in sort_sent:
+                if sel_length - rev_length <= summary_size:
+                    break
+            # if we don't find a sentence, break out of the main while loop
+            else:
+                break
+
+            # if the gain is null, break out of the main while loop
+            if not weights[sentence_index]:
+                break
+
+            # update the selected subset properties
+            sel_subset.add(sentence_index)
+            sel_score += weights[sentence_index]
+            sel_length -= rev_length
+
+            # update sentence weights with the reverse index
+            for concept in set(self.sentences[sentence_index].concepts):
+                if concept not in sel_concepts:
+                    for sentence in self.c2s[concept]:
+                        weights[sentence] -= self.weights[concept]
+
+            # update the last selected subset property
+            sel_concepts.update(self.sentences[sentence_index].concepts)
+
+        # check if a singleton has a better score than our greedy solution
+        if best_singleton_score > sel_score:
+            return best_singleton_score, set([best_singleton])
+
+        # returns the (objective function value, solution) tuple
+        return sel_score, sel_subset
+
+    def tabu_search(self,
+                    summary_size=100,
+                    memory_size=10,
+                    iterations=100,
+                    mutation_size=2,
+                    mutation_group=True):
+        """Greedy approximation of the ILP model with a tabu search
+          meta-heuristic.
+
+        Args:
+            summary_size (int): the maximum size in words of the summary,
+              defaults to 100.
+            memory_size (int): the maximum size of the pool of sentences
+              to ban at a given time, defaults at 5.
+            iterations (int): the number of iterations to run, defaults at
+              30.
+            mutation_size (int): number of sentences to unselect and add to
+              the tabu list at each iteration.
+            mutation_group (boolean): flag to consider the mutations as a
+              group: we'll check sentence combinations in the tabu list, not
+              sentences alone.
+        Returns:
+            (value, set) tuple (int, list): the value of the approximated
+              objective function and the set of selected sentences as a tuple.
+
+        """
+        # compute concept to sentences and concept sets for each sentence
+        if not self.c2s:
+            self.compute_c2s()
+        if not self.concept_sets:
+            self.compute_concept_sets()
+
+        # initialize weights
+        weights = {}
+
+        # initialize the score of the best singleton
+        best_singleton_score = 0
+
+        # compute initial weights and fill the reverse index
+        # while keeping track of the best singleton solution
+        for i, sentence in enumerate(self.sentences):
+            weights[i] = sum(self.weights[c] for c in set(sentence.concepts))
+            if sentence.length <= summary_size\
+               and weights[i] > best_singleton_score:
+                best_singleton_score = weights[i]
+                best_singleton = i
+
+        best_subset, best_score = None, 0
+        state = State()
+        for i in xrange(iterations):
+            queue = deque([], memory_size)
+            # greedily select sentences
+            state = self.select_sentences(summary_size,
+                                          weights,
+                                          state,
+                                          queue,
+                                          mutation_group)
+            if state.score > best_score:
+                best_subset = state.subset.copy()
+                best_score = state.score
+            to_tabu = set(random.sample(state.subset, mutation_size))
+            state = self.unselect_sentences(weights, state, to_tabu)
+            queue.extend(to_tabu)
+
+        # check if a singleton has a better score than our greedy solution
+        if best_singleton_score > best_score:
+            return best_singleton_score, set([best_singleton])
+
+        # returns the (objective function value, solution) tuple
+        return best_score, best_subset
+
+    def select_sentences(self,
+                         summary_size,
+                         weights,
+                         state,
+                         tabu_set,
+                         mutation_group):
+        """Greedy sentence selector.
+
+        Args:
+            summary_size (int): the maximum size in words of the summary,
+              defaults to 100.
+            weights (dictionary): the sentence weights dictionary. This
+              dictionnary is updated during this method call (in-place).
+            state (State): the state of the tabu search from which to start
+              selecting sentences.
+            tabu_set (iterable): set of sentences that are tabu: this
+              selector will not consider them.
+            mutation_group (boolean): flag to consider the mutations as a
+              group: we'll check sentence combinations in the tabu list, not
+              sentences alone.
+
+        Returns:
+            state (State): the new state of the search. Also note that
+              weights is modified in-place.
+
+        """
+        # greedily select a sentence while respecting the tabu
+        while True:
+
+            ###################################################################
+            # RETRIEVE THE BEST SENTENCE
+            ###################################################################
+
+            # sort the sentences by gain and reverse length
+            sort_sent = sorted(((weights[i] / float(self.sentences[i].length),
+                                 -self.sentences[i].length,
+                                 i)
+                                for i in range(len(self.sentences))
+                                if self.sentences[i].length + state.length <=
+                                summary_size),
+                               reverse=True)
+
+            # select the first sentence that fits in the length limit
+            for sentence_gain, rev_length, sentence_index in sort_sent:
+                if mutation_group:
+                    subset = state.subset | {sentence_index}
+                    for tabu in tabu_set:
+                        if tabu <= subset:
+                            break
+                    else:
+                        break
+                else:
+                    if sentence_index not in tabu_set:
+                        break
+            # if we don't find a sentence, break out of the main while loop
+            else:
+                break
+
+            # if the gain is null, break out of the main while loop
+            if not weights[sentence_index]:
+                break
+
+            # update state
+            state.subset |= {sentence_index}
+            state.concepts.update(self.concept_sets[sentence_index])
+            state.length -= rev_length
+            state.score += weights[sentence_index]
+
+            # update sentence weights with the reverse index
+            for concept in set(self.concept_sets[sentence_index]):
+                if state.concepts[concept] == 1:
+                    for sentence in self.c2s[concept]:
+                        weights[sentence] -= self.weights[concept]
+        return state
+
+    def unselect_sentences(self, weights, state, to_remove):
+        """Sentence ``un-selector'' (reverse operation of the
+          select_sentences method).
+
+        Args:
+            weights (dictionary): the sentence weights dictionary. This
+              dictionnary is updated during this method call (in-place).
+            state (State): the state of the tabu search from which to start
+              un-selecting sentences.
+            to_remove (iterable): set of sentences to unselect.
+
+        Returns:
+            state (State): the new state of the search. Also note that
+              weights is modified in-place.
+
+        """
+        # remove the sentence indices from the solution subset
+        state.subset -= to_remove
+        for sentence_index in to_remove:
+            # update state
+            state.concepts.subtract(self.concept_sets[sentence_index])
+            state.length -= self.sentences[sentence_index].length
+            # update sentence weights with the reverse index
+            for concept in set(self.concept_sets[sentence_index]):
+                if not state.concepts[concept]:
+                    for sentence in self.c2s[concept]:
+                        weights[sentence] += self.weights[concept]
+            state.score -= weights[sentence_index]
+        return state
+
+    def solve_ilp_problem(self,
+                          summary_size=100, units="WORDS",
+                          solver='glpk',
+                          excluded_solutions=[],
+                          unique=False):
+        """Solve the ILP formulation of the concept-based model.
+
+            :param summary_size: the maximum size in words of the summary, defaults to 100.
+            :param units: defaults to "WORDS"
+            :param solver: the solver used, defaults to glpk
+            :param excluded_solutions: (list of list): a list of subsets of sentences that are to be excluded,
+                defaults to []
+            :param unique: (bool): modify the model so that it produces only one optimal solution, defaults to False
+
+            :return: (value, set) tuple (int, list): the value of the objective function
+                and the set of selected sentences as a tuple.
+
+        """
+        # initialize container shortcuts
+        concepts = self.weights.keys()
+
+        w = self.weights
+        L = summary_size
+        C = len(concepts)
+        S = len(self.sentences)
+
+        if not self.word_frequencies:
+            self.compute_word_frequency()
+
+        tokens = self.word_frequencies.keys()
+        f = self.word_frequencies
+        T = len(tokens)
+
+        # HACK Sort keys
+        concepts = sorted(self.weights, key=self.weights.get, reverse=True)
+
+        # formulation of the ILP problem
+        prob = pulp.LpProblem(self.input_directory, pulp.LpMaximize)
+
+        # initialize the concepts binary variables
+        c = pulp.LpVariable.dicts(name='c',
+                                  indexs=range(C),
+                                  lowBound=0,
+                                  upBound=1,
+                                  cat='Integer')
+
+        # initialize the sentences binary variables
+        s = pulp.LpVariable.dicts(name='s',
+                                  indexs=range(S),
+                                  lowBound=0,
+                                  upBound=1,
+                                  cat='Integer')
+
+        # initialize the word binary variables
+        t = pulp.LpVariable.dicts(name='t',
+                                  indexs=range(T),
+                                  lowBound=0,
+                                  upBound=1,
+                                  cat='Integer')
+
+        # OBJECTIVE FUNCTION
+        prob += sum(w[concepts[i]] * c[i] for i in range(C))
+
+        if unique:
+            prob += sum(w[concepts[i]] * c[i] for i in range(C)) + \
+                    10e-6 * sum(f[tokens[k]] * t[k] for k in range(T))
+
+        # CONSTRAINT FOR SUMMARY SIZE
+        if units == "WORDS":
+            prob += sum(s[j] * self.sentences[j].length for j in range(S)) <= L
+        if units == "CHARACTERS":
+            prob += sum(s[j] * len(self.sentences[j].untokenized_form) for j in range(S)) <= L
+
+
+        # INTEGRITY CONSTRAINTS
+        for i in range(C):
+            for j in range(S):
+                if concepts[i] in self.sentences[j].concepts:
+                    prob += s[j] <= c[i]
+
+        for i in range(C):
+            prob += sum(s[j] for j in range(S)
+                        if concepts[i] in self.sentences[j].concepts) >= c[i]
+
+        # WORD INTEGRITY CONSTRAINTS
+        if unique:
+            for k in range(T):
+                for j in self.w2s[tokens[k]]:
+                    prob += s[j] <= t[k]
+
+            for k in range(T):
+                prob += sum(s[j] for j in self.w2s[tokens[k]]) >= t[k]
+
+        # CONSTRAINTS FOR FINDING OPTIMAL SOLUTIONS
+        for sentence_set in excluded_solutions:
+            prob += sum([s[j] for j in sentence_set]) <= len(sentence_set)-1
+
+        # prob.writeLP('test.lp')
+
+        # solving the ilp problem
+        if solver == 'gurobi':
+            prob.solve(pulp.GUROBI(msg=0))
+        elif solver == 'glpk':
+            prob.solve(pulp.GLPK(msg=0))
+        elif solver == 'cplex':
+            prob.solve(pulp.CPLEX(msg=0))
+        else:
+            sys.exit('no solver specified')
+
+        # retreive the optimal subset of sentences
+        solution = set([j for j in range(S) if s[j].varValue == 1])
+
+        # returns the (objective function value, solution) tuple
+        return (pulp.value(prob.objective), solution)
