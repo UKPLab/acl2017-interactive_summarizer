@@ -1,0 +1,6 @@
+(S (O Abortion clinics ) (C continue) (O to be targeted by anti-abortion groups such as Operation Rescue , Lambs of Christ , and Army of God .))
+(S (O Opposition ) (C ranges) (O from silent vigils to vocal and physical intimidation , and even murder .))
+(S (O Dr. Bart Shepian of ) (C Buffalo) (O 's) (C only abortion clinic) (C was murdered) (C in his home) (O .))
+(S (O Police in the US and Canada ) (C are looking) (C for James Kopp) (O ,) (C a known abortion opponent) (O , as a material witness in that murder .))
+(S (O The clinics ) (C serve) (O poor , young , and uneducated women since the well-to-do use their) (C established providers) (O .))
+(S (O AG Janet Reno ) (C has named) (O a task force to find out if) (C the Slepian murder) (O ,) (C the third in five years) (O , is) (C (C part) (C of an organized campaign of violence)) (O .))

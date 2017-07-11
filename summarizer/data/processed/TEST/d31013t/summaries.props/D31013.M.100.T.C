@@ -1,0 +1,7 @@
+(S (O Dr. Barnett Slepian , ) (C (O the mainstay of) (C Buffalo) (O 's only abortion clinic) (C ,)) (C was slain) (C (O as he) (C stood) (C at his kitchen window)) (O .))
+(S (O Slepian ) (C has been described) (C as a fatalist) (O who stubbornly) (C adhered) (C (O to doing what he) (C thought) (C right)) (O .))
+(S (O The FBI ) (C is looking) (C for James Kopp for questioning as a material witness in the slaying) (O .))
+(S (O Kopp has long been identified ) (C as a major voice in the anti-abortion movement) (O .))
+(S (O Attorney General Reno ) (C will investigate) (C (O if) (C the slaying) (O is) (C part) (C of a nation-wide plot)) (O .))
+(S (O In Canada , ) (C authorities) (C are worried) (C (O that) (C new violence) (C could erupt) (C as Remembrance Day approaches)) (O .))
+(S (O Anti-abortion pamphlets ) (C have been delivered) (O to a Canadian newspaper , possibly by Kopp .))
