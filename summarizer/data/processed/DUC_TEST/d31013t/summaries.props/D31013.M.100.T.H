@@ -1,0 +1,5 @@
+(S (O On Oct. 23 , 1998 , ) (C a sniper) (C killed) (C Dr. Barnet Slepian) (O ,) (C a mainstay in the last abortion clinic) (O in the Buffalo area and) (C one of only a few doctors) (C performing) (C (C the procedure) (C in the face of protesters and threats)) (O .))
+(S (O Many of the protesters are ) (C (C itinerants) (C like Rev)) (O .))
+(S (O Norman Weslin , ) (C founder of the anti-abortion group) (C Lambs) (C of Christ) (O , who) (C travel) (C (O about spreading their) (C message) (C and shutting down clinics)) (O .))
+(S (O Another itinerant demonstrator , ) (C James Charles Kopp) (O ,) (C is wanted) (C (C by the FBI) (C as a material witness in the Slepian murder)) (O .))
+(S (O In addition to anti-abortion violence , ) (C a shortage of doctors) (O who are) (C trained and willing to do the procedures) (C imperil) (C their widespread availability) (O .))

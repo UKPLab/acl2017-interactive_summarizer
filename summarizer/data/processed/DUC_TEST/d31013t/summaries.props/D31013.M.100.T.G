@@ -1,0 +1,8 @@
+(S (O  ) (O he primary doctor at the last abortion clinic in Buffalo , NY , was shot and killed .))
+(S (O Dr. Slepian , ) (C a stubborn man) (O ,) (C dedicated) (O to) (C women) (O 's care , and an unlikely martyr .))
+(S (O It ) (C 's) (O the 7th such death , and the 4th similar attack .))
+(S (O James Kopp ) (C is sought) (C as a material witness) (O .))
+(S (O The anti-abortion movement has ) (C local and itinerate members) (O .))
+(S (O Their ) (C activities) (C go) (O from prayers and talking to confrontations , threats and violence .))
+(S (O After this killing , ) (C the FBI) (C resumed) (C (C a search) (C for an anti-abortion conspiracy)) (O .))
+(S (O Since the first few years after Roe v Wade , ) (C the number of abortions) (C has declined) (O , as has) (C the number of clinics and doctors) (O providing) (C the procedure) (O ,) (C (C especially) (C for poorer women)) (O .))
