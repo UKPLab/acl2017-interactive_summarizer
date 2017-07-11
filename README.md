@@ -55,10 +55,12 @@ Installation
 4. [Optional] To run the system for active learning models
 
 		 Download the Google embeddings (English) from the [link](https://drive.google.com/file/d/0B7XkCwpI5KDYNlNUTTlSS21pQmM/)
+		 
 		 >> mkdir -p summarizer/data/embeddings/english
 		 >> mv GoogleNews-vectors-negative300.bin.gz summarizer/data/embeddings/english
 		 
 		 Download the News, Wikipedia embeddings (German) from the [link](https://public.ukp.informatik.tu-darmstadt.de/reimers/2014_german_embeddings/2014_tudarmstadt_german_50mincount.vec)
+		 
 		 >> mkdir -p summarizer/data/embeddings/german
 		 >> mv 2014_tudarmstadt_german_50mincount.vec summarizer/data/embeddings/german
 		 
