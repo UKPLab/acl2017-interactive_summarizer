@@ -5,7 +5,10 @@ base/
 .settings/
 .*.pyc
 rouge/*
-summarizer/jars/*
+summarizer/jars/stanford-parser-3.6.0-models.jar
+summarizer/jars/stanford-parser.jar
+summarizer/jars/englishPCFG.ser.gz
+summarizer/jars/germanPCFG.ser.gz
 
 # default gitignores for python from https://github.com/github/gitignore/blob/master/Python.gitignore
 # Byte-compiled / optimized / DLL files

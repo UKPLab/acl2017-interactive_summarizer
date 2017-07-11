@@ -83,7 +83,7 @@ class CorpusCleaner(object):
                 with codecs.open(filename, 'r', 'utf-8', errors='ignore') as fp:
                     data = fp.read().splitlines()
                 text = ' '.join(data)
-                print text.encode('utf-8')
+                #print text.encode('utf-8')
                 text = re.sub(u'\u201e|\u201c', u'', text)
                 text = re.sub(u'\(EL[^\)]+\)', u'', text)
                 text = re.sub(u'\(MLI[^\)]+\)', u'', text)
@@ -243,7 +243,7 @@ class CorpusCleaner(object):
         for datafile in os.listdir(cluster_path):
             filename = path.join(cluster_path, datafile)
             file_data = read_file(filename).replace('&', '111')
-            print 'going to parse xml: '"%s"' ; %s ' % (filename, type(file_data))
+            print 'Going to parse xml: '"%s"' ; %s ' % (filename, type(file_data))
             doc_no, headline, rawtext = self.parse_xml(file_data, filename)
             docs.append((doc_no, rawtext))
         return (docs, summaries)
@@ -291,7 +291,7 @@ class CorpusCleaner(object):
 
             text = re.sub(u"(ATHLETE:)", u". \\1", text)
             text = re.sub(u"[*]\n", u". ", text)
-        elif self.corpus_name == "DUC2004":
+        elif self.corpus_name == "DUC2004" or self.corpus_name == "DUC_TEST":
             text = e.find('TEXT').text
             headline = ""
         elif self.corpus_name == "DUC2004TASK5":
@@ -311,8 +311,6 @@ class CorpusCleaner(object):
             headline = e.find("HEADLINE")
             if not headline:
                 headline = ""
-
-
 
         # TODO add DUC2007 parsing
         print "Original_text:", text.encode('utf-8')
