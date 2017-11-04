@@ -145,8 +145,12 @@ ToRun
 3. python pipeline.py --help for more details
     
         python pipeline.py --summary_size=100 --oracle_type=accept_reject --data_set=DUC_TEST --summarizer_type=feedback
-        pyhton pipeline.py --summary_size=100 --oracle_type=accept_reject --data_set=DUC_TEST --summarizer_type=baselines --language=english --rouge=rouge/RELEASE-1.5.5/ --iobasedir=outputs/
+        pyhton pipeline.py --summary_size=100 --oracle_type=accept_reject --data_set=DUC_TEST --summarizer_type=baselines --language=english --rouge=rouge/RELEASE-1.5.5/
 
+4. Bash file for the experiments in the paper and sample outputs of the system for DBS corpus
+        
+        cat bash.sh
+        ls outputs/DBS
 
 Dataset notes
 =============
