@@ -19,11 +19,10 @@ If you reuse this software, please use the following citation:
 ```
 > **Abstract:** In this paper, we propose an extractive multi-document summarization (MDS) system using joint optimization and active learning for content selection grounded in user feedback. Our method   interactively obtains user feedback to gradually improve the results of a state-of-the-art integer linear programming (ILP) framework for MDS. Our methods complement fully automatic methods in producing   high-quality summaries with a minimum number of iterations and feedbacks. We conduct multiple simulation-based experiments and analyze the effect of feedback-based concept selection in the ILP setup in    order to maximize the user-desired content in the summary.
 
-Contact person: Avinesh P.V.S., avinesh@aiphes.tu-darmstadt.de
-
-http://www.ukp.tu-darmstadt.de/
-
-http://www.tu-darmstadt.de/
+**Contact person:**
+* Avinesh P.V.S., first_name AT aiphes.tu-darmstadt.de
+* http://www.ukp.tu-darmstadt.de/
+* http://www.tu-darmstadt.de/
 
 Don't hesitate to send us an e-mail or report an issue, if something is broken (and it shouldn't be) or if you have further questions.
 
@@ -43,13 +42,13 @@ Installation
 	```
 	mv RELEASE-1.5.5 rouge/
 	```
-        
 
 2. Install required python packages.
 
 	```
 	pip install -r requirements.txt
 	```     
+
 3. Download the Standford Parser models and jars from the [link](https://nlp.stanford.edu/software/lex-parser.shtml)
 	
 	```
@@ -106,6 +105,7 @@ To Run
 	```    
        python summarizer/data_processer/make_data.py -d DUC_TEST -p summarizer/data/raw  -a parse -l english
 	```
+
    The results should then be copied into a directory. We recommend using the `--iobasedir` argument to set the directory
  
         +--+datasets/
@@ -155,8 +155,6 @@ To Run
            +--+2014_tudarmstadt_german_50mincount.vec
 
 
-	   
-
 3. python pipeline.py --help for more details
     
     ```
@@ -166,8 +164,10 @@ To Run
 
 4. Bash file for the experiments in the paper and sample outputs of the system for DBS corpus
         
+    ```
         cat bash.sh
         ls outputs/DBS
+    ```
 
 Dataset notes
 =============
@@ -211,8 +211,5 @@ Verified by one (1) user.
 
 
 ![altText][pydev-windows]
-
-
-
 
 [pydev-windows]: docs/windows-eclipse-pydev-run-config.png "Run configuration for windows"
