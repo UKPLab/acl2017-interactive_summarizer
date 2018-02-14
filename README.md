@@ -40,32 +40,46 @@ Installation
 
 1. Download ROUGE package from the [link](https://www.isi.edu/licensed-sw/see/rouge/) and place it in the rouge directory 
 
-        >> mv RELEASE-1.5.5 rouge/
+	```
+	mv RELEASE-1.5.5 rouge/
+	```
         
 
 2. Install required python packages.
 
-        >> pip install -r requirements.txt
-        
+	```
+	pip install -r requirements.txt
+	```     
 3. Download the Standford Parser models and jars from the [link](https://nlp.stanford.edu/software/lex-parser.shtml)
 	
-		>> mv englishPCFG.ser.gz germanPCFG.ser.gz jars/
-		>> mv stanford-parser.jar stanford-parser-3.6.0-models.jar jars/		
+	```
+	mv englishPCFG.ser.gz germanPCFG.ser.gz jars/
+	mv stanford-parser.jar stanford-parser-3.6.0-models.jar jars/		
+	```
         
 4. [Optional] To run the system for active learning models
 
-		 Download the Google embeddings (English) from the [link](https://drive.google.com/file/d/0B7XkCwpI5KDYNlNUTTlSS21pQmM/)
-		 
-		 >> mkdir -p summarizer/data/embeddings/english
-		 >> mv GoogleNews-vectors-negative300.bin.gz summarizer/data/embeddings/english
-		 
-		 Download the News, Wikipedia embeddings (German) from the [link](https://public.ukp.informatik.tu-darmstadt.de/reimers/2014_german_embeddings/2014_tudarmstadt_german_50mincount.vec)
-		 
-		 >> mkdir -p summarizer/data/embeddings/german
-		 >> mv 2014_tudarmstadt_german_50mincount.vec summarizer/data/embeddings/german
-		 
-		 
-ToRun
+	Download the Google embeddings (English) from the [link](https://drive.google.com/file/d/0B7XkCwpI5KDYNlNUTTlSS21pQmM/)
+
+	```		 
+	mkdir -p summarizer/data/embeddings/english
+	mv GoogleNews-vectors-negative300.bin.gz summarizer/data/embeddings/english
+	```		 
+	Download the News, Wikipedia embeddings (German) from the [link](https://public.ukp.informatik.tu-darmstadt.de/reimers/2014_german_embeddings/2014_tudarmstadt_german_50mincount.vec)
+
+	```
+	mkdir -p summarizer/data/embeddings/german
+	mv 2014_tudarmstadt_german_50mincount.vec summarizer/data/embeddings/german
+	```
+
+5. [Optional] To solve ILPs using CPLEX (faster), which can be obtained from IBM here: [link](https://ibm.com/software/commerce/optimization/cplex-optimizer/). Install the cplex python package.
+
+    ``` 
+    cd cplex_installation_dir/python
+    python setup install
+    ```
+			 
+To Run
 -------
 
 1. Make sure that you have the raw datasets available. Each raw dataset needs to be extracted and follow the following directory structure:       
@@ -88,9 +102,10 @@ ToRun
 
 
 2. Before running the pipeline, you have to preprocess the raw datasets using the `make_data.py` script. Replace the DUC_TEST with appropriate dataset and run the same command.
-    
-       python summarizer/data_processer/make_data.py -d DUC_TEST -p summarizer/data/raw  -a parse -l english
 
+	```    
+       python summarizer/data_processer/make_data.py -d DUC_TEST -p summarizer/data/raw  -a parse -l english
+	```
    The results should then be copied into a directory. We recommend using the `--iobasedir` argument to set the directory
  
         +--+datasets/
@@ -144,9 +159,10 @@ ToRun
 
 3. python pipeline.py --help for more details
     
-        python pipeline.py --summary_size=100 --oracle_type=accept_reject --data_set=DUC_TEST --summarizer_type=feedback
+    ```
+        python pipeline.py --summary_size=100 --oracle_type=accept_reject --data_set=DUC_TEST --summarizer_type=feedback --language=english
         pyhton pipeline.py --summary_size=100 --oracle_type=accept_reject --data_set=DUC_TEST --summarizer_type=baselines --language=english --rouge=rouge/RELEASE-1.5.5/ --iobasedir=outputs/
-
+	```
 
 Dataset notes
 =============
@@ -178,7 +194,9 @@ Verified by one (1) user.
 1. install perl module `XML::DOM`
 1. install python modules
 
-	pip install -r requirements.txt
+	```
+		pip install -r requirements.txt
+	```
   
 1. configure eclipse pydev run configuration as set up here: 
       

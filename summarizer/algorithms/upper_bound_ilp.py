@@ -154,17 +154,23 @@ class ExtractiveUpperbound(Summarizer):
 
         # Define ILP problem, maximum coverage of grams from the reference summaries
         prob = pulp.LpProblem("ExtractiveUpperBound", pulp.LpMaximize)
-        prob += sum(z[j] for j in self.ref_ngrams_idx)
+        prob += pulp.lpSum(z[j] for j in self.ref_ngrams_idx)
 
         # Define ILP constraints, length constraint and consistency constraint (impose that z_j is 1 if j
         # appears in the created summary)
-        prob += sum(x[i] * self.sentences[i].length for i in self.sentences_idx) <= self.sum_length
+        prob += pulp.lpSum(x[i] * self.sentences[i].length for i in self.sentences_idx) <= self.sum_length
 
         for j in self.ref_ngrams_idx:
-            prob += sum(A[i][j] * x[i] for i in self.sentences_idx) >= z[j]
+            prob += pulp.lpSum(A[i][j] * x[i] for i in self.sentences_idx) >= z[j]
 
         # Solve ILP problem and post-processing to get the summary
-        prob.solve(pulp.GLPK(msg=0))
+        try:
+            print('Solving using CPLEX')
+            prob.solve(pulp.CPLEX(msg=0))
+        except:
+            print('Solving using GLPK')
+            prob.solve(pulp.GLPK(msg=0))
+                
 
         summary_idx = []
         for idx in self.sentences_idx:

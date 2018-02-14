@@ -591,17 +591,17 @@ class ConceptBasedILPSummarizer(LoadFile):
                                   cat='Integer')
 
         # OBJECTIVE FUNCTION
-        prob += sum(w[concepts[i]] * c[i] for i in range(C))
+        prob += pulp.lpSum(w[concepts[i]] * c[i] for i in range(C))
 
         if unique:
-            prob += sum(w[concepts[i]] * c[i] for i in range(C)) + \
-                    10e-6 * sum(f[tokens[k]] * t[k] for k in range(T))
+            prob += pulp.lpSum(w[concepts[i]] * c[i] for i in range(C)) + \
+                    10e-6 * pulp.lpSum(f[tokens[k]] * t[k] for k in range(T))
 
         # CONSTRAINT FOR SUMMARY SIZE
         if units == "WORDS":
-            prob += sum(s[j] * self.sentences[j].length for j in range(S)) <= L
+            prob += pulp.lpSum(s[j] * self.sentences[j].length for j in range(S)) <= L
         if units == "CHARACTERS":
-            prob += sum(s[j] * len(self.sentences[j].untokenized_form) for j in range(S)) <= L
+            prob += pulp.lpSum(s[j] * len(self.sentences[j].untokenized_form) for j in range(S)) <= L
 
 
         # INTEGRITY CONSTRAINTS
@@ -611,7 +611,7 @@ class ConceptBasedILPSummarizer(LoadFile):
                     prob += s[j] <= c[i]
 
         for i in range(C):
-            prob += sum(s[j] for j in range(S)
+            prob += pulp.lpSum(s[j] for j in range(S)
                         if concepts[i] in self.sentences[j].concepts) >= c[i]
 
         # WORD INTEGRITY CONSTRAINTS
@@ -621,23 +621,26 @@ class ConceptBasedILPSummarizer(LoadFile):
                     prob += s[j] <= t[k]
 
             for k in range(T):
-                prob += sum(s[j] for j in self.w2s[tokens[k]]) >= t[k]
+                prob += pulp.lpSum(s[j] for j in self.w2s[tokens[k]]) >= t[k]
 
         # CONSTRAINTS FOR FINDING OPTIMAL SOLUTIONS
         for sentence_set in excluded_solutions:
-            prob += sum([s[j] for j in sentence_set]) <= len(sentence_set)-1
+            prob += pulp.lpSum([s[j] for j in sentence_set]) <= len(sentence_set)-1
 
         # prob.writeLP('test.lp')
 
         # solving the ilp problem
-        if solver == 'gurobi':
-            prob.solve(pulp.GUROBI(msg=0))
-        elif solver == 'glpk':
-            prob.solve(pulp.GLPK(msg=0))
-        elif solver == 'cplex':
-            prob.solve(pulp.CPLEX(msg=0))
-        else:
-            sys.exit('no solver specified')
+        try:
+            print('Solving using Cplex')
+            prob.solve(pulp.CPLEX(msg=0)) 
+        except:
+            print('Fallback to mentioned solver')
+            if solver == 'gurobi':
+                prob.solve(pulp.GUROBI(msg=0))
+            elif solver == 'glpk':
+                prob.solve(pulp.GLPK(msg=0)) 
+            else:
+                sys.exit('no solver specified')
 
         # retreive the optimal subset of sentences
         solution = set([j for j in range(S) if s[j].varValue == 1])

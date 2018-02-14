@@ -24,6 +24,7 @@ from summarizer.baselines.sume_wrap import SumeWrap
 from summarizer.utils.data_helpers import prune_ngrams, extract_ngrams2, get_parse_info, \
     prune_phrases
 
+
 RECOMMENDER_METHOD_SAMPLING = "SAMPLING"
 RECOMMENDER_METHOD_HIGHEST_WEIGHT = "HIGHEST_WEIGHT"
 
@@ -380,17 +381,19 @@ class SimulatedFeedback(object):
             return 1
         return 0
 
-    def solve_joint_ilp(self, summary_size, feedback, non_feedback, uncertainity={}, labels={}, unique=False,
-                        solver='glpk', excluded_solutions=[]):
+    def solve_joint_ilp(self, summary_size, feedback, non_feedback, uncertainity={}, labels={}, unique=False, solver='glpk', excluded_solutions=[]):
         """
 
         :param summary_size: The size of the backpack. i.e. how many words are allowed in the summary.
         :param feedback:
         :param non_feedback:
         :param unique: if True, an boudin_2015 eq. (5) is applied to enforce a unique solution.
-        :param solver: default glpk
+        :param solver: cplex, if fails use the mentioned solver
         :param excluded_solutions:
-        :return:
+        
+        :return: (val, set) tuple (int, list): the value of the objective function and the set of
+            selected sentences as a tuple. 
+        
         """
         w = self.summarizer.weights
         u = uncertainity
@@ -442,7 +445,7 @@ class SimulatedFeedback(object):
         # OBJECTIVE FUNCTION
         if labels:
             print('solve for Active learning 2')
-            prob += sum(w[non_feedback[i]] * (1.0 - u[non_feedback[i]]) * labels[non_feedback[i]] * nf[i] for i in range(NF))
+            prob += pulp.lpSum(w[non_feedback[i]] * (1.0 - u[non_feedback[i]]) * labels[non_feedback[i]] * nf[i] for i in range(NF))
         if not labels:
             if uncertainity:
                 print('solve for Active learning')
@@ -450,23 +453,24 @@ class SimulatedFeedback(object):
                     # In this phase, we force new concepts to be chosen, and not those we already have feedback on, and
                     # therefore non_feedback is added while feedback is substracted from the problem. I.e. by
                     # substracting the feedback, those sentences will disappear from the solution.
-                    prob += sum(w[non_feedback[i]] * u[non_feedback[i]] * nf[i] for i in range(NF)) - sum(
+                    prob += pulp.lpSum(w[non_feedback[i]] * u[non_feedback[i]] * nf[i] for i in range(NF)) - pulp.lpSum(
                             w[feedback[i]] * u[feedback[i]] * f[i] for i in range(F))
+                    pulp.l
                 else:
-                    prob += sum(w[non_feedback[i]] * u[non_feedback[i]] * nf[i] for i in range(NF))
+                    prob += pulp.lpSum(w[non_feedback[i]] * u[non_feedback[i]] * nf[i] for i in range(NF))
             if not uncertainity:
                 print('solve for ILP feedback')
                 if feedback:
-                    prob += sum(w[non_feedback[i]] * nf[i] for i in range(NF)) - sum(w[feedback[i]] * f[i] for i in range(F))
+                    prob += pulp.lpSum(w[non_feedback[i]] * nf[i] for i in range(NF)) - pulp.lpSum(w[feedback[i]] * f[i] for i in range(F))
                 else:
-                    prob += sum(w[non_feedback[i]] * nf[i] for i in range(NF))
+                    prob += pulp.lpSum(w[non_feedback[i]] * nf[i] for i in range(NF))
 
         if unique:
-            prob += sum(w[non_feedback[i]] * nf[i] for i in range(NF)) - sum(w[feedback[i]] * f[i] for i in range(F)) + \
-                    10e-6 * sum(f[tokens[k]] * t[k] for k in range(T))
+            prob += pulp.lpSum(w[non_feedback[i]] * nf[i] for i in range(NF)) - pulp.lpSum(w[feedback[i]] * f[i] for i in range(F)) + \
+                    10e-6 * pulp.lpSum(f[tokens[k]] * t[k] for k in range(T))
 
         # CONSTRAINT FOR SUMMARY SIZE
-        prob += sum(s[j] * self.summarizer.sentences[j].length for j in range(S)) <= L
+        prob += pulp.lpSum(s[j] * self.summarizer.sentences[j].length for j in range(S)) <= L
 
         # INTEGRITY CONSTRAINTS
         for i in range(NF):
@@ -475,7 +479,7 @@ class SimulatedFeedback(object):
                     prob += s[j] <= nf[i]
 
         for i in range(NF):
-            prob += sum(s[j] for j in range(S)
+            prob += pulp.lpSum(s[j] for j in range(S)
                         if non_feedback[i] in self.summarizer.sentences[j].concepts) >= nf[i]
 
         for i in range(F):
@@ -484,7 +488,7 @@ class SimulatedFeedback(object):
                     prob += s[j] <= f[i]
 
         for i in range(F):
-            prob += sum(s[j] for j in range(S)
+            prob += pulp.lpSum(s[j] for j in range(S)
                         if feedback[i] in self.summarizer.sentences[j].concepts) >= f[i]
 
         # WORD INTEGRITY CONSTRAINTS
@@ -494,24 +498,27 @@ class SimulatedFeedback(object):
                     prob += s[j] <= t[k]
 
             for k in range(T):
-                prob += sum(s[j] for j in self.summarizer.w2s[tokens[k]]) >= t[k]
+                prob += pulp.lpSum(s[j] for j in self.summarizer.w2s[tokens[k]]) >= t[k]
 
         # CONSTRAINTS FOR FINDING OPTIMAL SOLUTIONS
         for sentence_set in excluded_solutions:
-            prob += sum([s[j] for j in sentence_set]) <= len(sentence_set) - 1
+            prob += pulp.lpSum([s[j] for j in sentence_set]) <= len(sentence_set) - 1
 
         # prob.writeLP('test.lp')
 
         # solving the ilp problem
-        if solver == 'gurobi':
-            prob.solve(pulp.GUROBI(msg=0))
-        elif solver == 'glpk':
-            prob.solve(pulp.GLPK(msg=0))
-        elif solver == 'cplex':
+        try:
+            print('Solving using CPLEX')
             prob.solve(pulp.CPLEX(msg=0))
-        else:
-            sys.exit('no solver specified')
-
+        except:
+            print('Fallback to mentioned solver')
+            if solver == 'gurobi':
+                prob.solve(pulp.GUROBI(msg=0))
+            elif solver == 'glpk':
+                prob.solve(pulp.GLPK(msg=0)) 
+            else:
+                sys.exit('no solver specified')
+            
         # retreive the optimal subset of sentences
         solution = set([j for j in range(S) if s[j].varValue == 1])
 
