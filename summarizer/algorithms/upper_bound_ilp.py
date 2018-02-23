@@ -168,7 +168,7 @@ class ExtractiveUpperbound(Summarizer):
             print('Solving using CPLEX')
             prob.solve(pulp.CPLEX(msg=0))
         except:
-            print('Solving using GLPK')
+            print('Fall back to GLPK')
             prob.solve(pulp.GLPK(msg=0))
                 
 
